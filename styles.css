@@ -1,4 +1,15 @@
 /* styles.css */
+@keyframes tremble {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+}
+
+.grid.tremble {
+    animation: tremble 0.3s;
+}
+
 body {
     background-color: #FFFFFF; /* White background */
     color: #000000; /* Black text */
@@ -17,10 +28,11 @@ body {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(6, 50px);
+    grid-template-columns: repeat(5, 50px); /* 5x5 grid */
     grid-gap: 5px;
     justify-content: center;
     margin: 20px auto;
+    position: relative;
 }
 
 .cell {
@@ -42,7 +54,7 @@ body {
 }
 
 .cell.valid-move {
-    background-color: #4E5180; /* Slightly more pale gray for valid moves */
+    background-color: #FFFFE0; /* Pale yellow for valid moves */
     border: 2px solid #000000; /* Black border for valid moves */
 }
 
@@ -51,25 +63,27 @@ body {
     color: #FFFFFF; /* White text for obstacles */
 }
 
-.operations {
+.popup-menu {
+    position: absolute;
+    background-color: #FFFFFF;
     display: flex;
-    justify-content: center;
-    margin: 20px;
+    flex-direction: column;
+    z-index: 10;
 }
 
-.operations button {
+.popup-menu button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     background-color: #98FF98; /* Mint green for operation buttons */
     border: 2px solid #000000;
-    padding: 10px;
-    margin: 5px;
     cursor: pointer;
-    font-size: 1.2em;
-    transition: background-color 0.3s, color 0.3s; /* Add transition for animations */
+    font-size: 1em;
+    margin: 2px;
 }
 
-.operations button.selected {
-    background-color: #FF6F61; /* Coral for selected operation */
-    color: #FFFFFF; /* White text for selected operation */
+.popup-menu button:hover {
+    background-color: #E0E0E0;
 }
 
 .equation {
@@ -77,27 +91,27 @@ body {
     font-size: 1.5em;
 }
 
-.congratulations {
-    font-size: 1.5em;
-    color: #000000; /* Black text for congratulations */
+.buttons {
+    margin-top: 20px;
 }
 
-.results {
-    font-size: 1.2em;
-}
-
-.share-button {
+.buttons button {
     background-color: #4E5180; /* Slate blue for highlights */
     color: #FFFFFF;
     padding: 10px 20px;
     border: none;
     cursor: pointer;
+    margin: 5px;
+}
+
+.buttons button:hover {
+    background-color: #3E4168;
 }
 
 .instructions {
     font-size: 1.2em;
 }
 
-#target1, #target2, #target3 {
-    color: #4E5180; /* Slate blue for targets */
+#target1 {
+    color: #4E5180; /* Slate blue for target */
 }
