@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numble - Gameplay</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="logo">Numble</h1>
+        <p class="instructions" id="instructions">
+            <span id="target1">42</span> -> <span id="target2">56</span> -> <span id="target3">84</span><br>
+            Use at least 1 multiplication
+        </p>
+        <div class="grid" id="grid">
+            <div class="cell selected">3</div>
+            <div class="cell">7</div>
+            <div class="cell">2</div>
+            <div class="cell obstacle">X</div>
+            <div class="cell">5</div>
+            <div class="cell">4</div>
+            <div class="cell">4</div>
+            <div class="cell">1</div>
+            <div class="cell obstacle">X</div>
+            <div class="cell">6</div>
+            <div class="cell">2</div>
+            <div class="cell">3</div>
+            <div class="cell">8</div>
+            <div class="cell">5</div>
+            <div class="cell">3</div>
+            <div class="cell">4</div>
+            <div class="cell">7</div>
+            <div class="cell">1</div>
+            <div class="cell">6</div>
+            <div class="cell">2</div>
+            <div class="cell obstacle">X</div>
+            <div class="cell">1</div>
+            <div class="cell">3</div>
+            <div class="cell">5</div>
+            <div class="cell">5</div>
+            <div class="cell">9</div>
+            <div class="cell">4</div>
+            <div class="cell">2</div>
+            <div class="cell">8</div>
+            <div class="cell">6</div>
+            <div class="cell">3</div>
+            <div class="cell">6</div>
+            <div class="cell">1</div>
+            <div class="cell">5</div>
+            <div class="cell obstacle">X</div>
+            <div class="cell">7</div>
+        </div>
+        <div class="operations">
+            <button onclick="setOperation('+')">+</button>
+            <button onclick="setOperation('-')">-</button>
+            <button onclick="setOperation('*')">*</button>
+            <button onclick="setOperation('/')">/</button>
+        </div>
+        <p class="equation" id="equation">3</p>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

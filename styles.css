@@ -1,0 +1,103 @@
+/* styles.css */
+body {
+    background-color: #FFFFFF; /* White background */
+    color: #000000; /* Black text */
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    text-align: center;
+    padding: 20px;
+}
+
+.logo {
+    font-size: 2em;
+    color: #000000; /* Black text for logo */
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(6, 50px);
+    grid-gap: 5px;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #D3D3D3; /* Light gray grid cells */
+    border: 2px solid #000000; /* Black border for cells */
+    font-size: 1.5em;
+    cursor: pointer;
+    transition: background-color 0.3s, border-color 0.3s; /* Add transition for animations */
+}
+
+.cell.selected {
+    background-color: #98FF98; /* Mint green for selected elements */
+    border: 2px solid #000000;
+}
+
+.cell.valid-move {
+    background-color: #4E5180; /* Slightly more pale gray for valid moves */
+    border: 2px solid #000000; /* Black border for valid moves */
+}
+
+.cell.obstacle {
+    background-color: #000000; /* Black background for obstacles */
+    color: #FFFFFF; /* White text for obstacles */
+}
+
+.operations {
+    display: flex;
+    justify-content: center;
+    margin: 20px;
+}
+
+.operations button {
+    background-color: #98FF98; /* Mint green for operation buttons */
+    border: 2px solid #000000;
+    padding: 10px;
+    margin: 5px;
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: background-color 0.3s, color 0.3s; /* Add transition for animations */
+}
+
+.operations button.selected {
+    background-color: #FF6F61; /* Coral for selected operation */
+    color: #FFFFFF; /* White text for selected operation */
+}
+
+.equation {
+    margin-top: 20px;
+    font-size: 1.5em;
+}
+
+.congratulations {
+    font-size: 1.5em;
+    color: #000000; /* Black text for congratulations */
+}
+
+.results {
+    font-size: 1.2em;
+}
+
+.share-button {
+    background-color: #4E5180; /* Slate blue for highlights */
+    color: #FFFFFF;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+}
+
+.instructions {
+    font-size: 1.2em;
+}
+
+#target1, #target2, #target3 {
+    color: #4E5180; /* Slate blue for targets */
+}
