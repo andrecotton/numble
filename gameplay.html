@@ -10,54 +10,14 @@
     <div class="container">
         <h1 class="logo">Numble</h1>
         <p class="instructions" id="instructions">
-            <span id="target1">42</span> -> <span id="target2">56</span> -> <span id="target3">84</span><br>
-            Use at least 1 multiplication
+            Target: <span id="target1">42</span>
         </p>
-        <div class="grid" id="grid">
-            <div class="cell selected">3</div>
-            <div class="cell">7</div>
-            <div class="cell">2</div>
-            <div class="cell obstacle">X</div>
-            <div class="cell">5</div>
-            <div class="cell">4</div>
-            <div class="cell">4</div>
-            <div class="cell">1</div>
-            <div class="cell obstacle">X</div>
-            <div class="cell">6</div>
-            <div class="cell">2</div>
-            <div class="cell">3</div>
-            <div class="cell">8</div>
-            <div class="cell">5</div>
-            <div class="cell">3</div>
-            <div class="cell">4</div>
-            <div class="cell">7</div>
-            <div class="cell">1</div>
-            <div class="cell">6</div>
-            <div class="cell">2</div>
-            <div class="cell obstacle">X</div>
-            <div class="cell">1</div>
-            <div class="cell">3</div>
-            <div class="cell">5</div>
-            <div class="cell">5</div>
-            <div class="cell">9</div>
-            <div class="cell">4</div>
-            <div class="cell">2</div>
-            <div class="cell">8</div>
-            <div class="cell">6</div>
-            <div class="cell">3</div>
-            <div class="cell">6</div>
-            <div class="cell">1</div>
-            <div class="cell">5</div>
-            <div class="cell obstacle">X</div>
-            <div class="cell">7</div>
+        <p class="equation" id="equation"></p>
+        <div class="grid" id="grid"></div>
+        <div class="buttons">
+            <button id="undo-button">Undo</button>
+            <button id="reset-button">Reset</button>
         </div>
-        <div class="operations">
-            <button onclick="setOperation('+')">+</button>
-            <button onclick="setOperation('-')">-</button>
-            <button onclick="setOperation('*')">*</button>
-            <button onclick="setOperation('/')">/</button>
-        </div>
-        <p class="equation" id="equation">3</p>
     </div>
     <script src="script.js"></script>
 </body>
