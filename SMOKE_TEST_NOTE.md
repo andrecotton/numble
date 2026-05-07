@@ -1,0 +1,1 @@
+Puzzle smoke tests will verify that date-seeded puzzles have solutions.
