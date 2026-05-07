@@ -1,7 +1,8 @@
 // script.js
+
 class PRNG {
     constructor(seed) {
-        this.seed = seed;
+        this.seed = Number(seed) || 1;
     }
 
     next() {
@@ -14,168 +15,301 @@ class PRNG {
     }
 }
 
-function generatePuzzle(seed) {
-    const prng = new PRNG(parseInt(seed));
-    const gridSize = 5;
-    const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
-    const startPosition = { row: 0, col: 0 };
+const GRID_SIZE = 5;
+const START_POSITION = { row: 0, col: 0 };
 
-    // Generate the single goal
-    const goal = prng.nextInt(20, 100);
+const DIRECTIONS = [
+    { row: -1, col: 0 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+    { row: 0, col: 1 },
+    { row: -1, col: -1 },
+    { row: -1, col: 1 },
+    { row: 1, col: -1 },
+    { row: 1, col: 1 }
+];
 
-    // Fill the grid with random numbers between 1 and 9
-    for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
-            if (!(row === startPosition.row && col === startPosition.col)) {
-                grid[row][col] = prng.nextInt(1, 9);
-            } else {
-                grid[row][col] = prng.nextInt(1, 9); // Start position number
-            }
-        }
-    }
-
-    // Generate some blocked cells randomly
-    const blockedCellsCount = prng.nextInt(3, 7); // Random number of blocked cells between 3 and 7
-    for (let i = 0; i < blockedCellsCount; i++) {
-        let row, col;
-        do {
-            row = prng.nextInt(0, gridSize - 1);
-            col = prng.nextInt(0, gridSize - 1);
-        } while (grid[row][col] === 'X' || (row === startPosition.row && col === startPosition.col)); // Ensure not to block the start position
-        grid[row][col] = 'X';
-    }
-
-    // Ensure the grid has a valid solution
-    while (!hasValidSolution(grid, goal, startPosition)) {
-        // Regenerate the grid until a valid solution is found
-        for (let row = 0; row < gridSize; row++) {
-            for (let col = 0; col < gridSize; col++) {
-                if (grid[row][col] !== 'X' && !(row === startPosition.row && col === startPosition.col)) {
-                    grid[row][col] = prng.nextInt(1, 9);
-                }
-            }
-        }
-    }
-
-    return { grid, goal };
+function getPuzzleDate(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
-function hasValidSolution(grid, goal, startPosition) {
-    const directions = [
-        { row: -1, col: 0 },
-        { row: 1, col: 0 },
-        { row: 0, col: -1 },
-        { row: 0, col: 1 },
-        { row: -1, col: -1 },
-        { row: -1, col: 1 },
-        { row: 1, col: -1 },
-        { row: 1, col: 1 }
-    ];
+function getDailySeed(date = new Date()) {
+    return Number(getPuzzleDate(date).replaceAll('-', ''));
+}
 
+function applyOperation(currentValue, nextValue, operation) {
+    switch (operation) {
+        case '+':
+            return currentValue + nextValue;
+        case '-':
+            return currentValue - nextValue;
+        case '*':
+            return currentValue * nextValue;
+        case '/':
+            if (nextValue === 0 || currentValue % nextValue !== 0) {
+                return null;
+            }
+            return currentValue / nextValue;
+        default:
+            return null;
+    }
+}
+
+function generateCandidateGrid(prng) {
+    const grid = Array.from(
+        { length: GRID_SIZE },
+        () => Array(GRID_SIZE).fill(0)
+    );
+
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            grid[row][col] = prng.nextInt(1, 9);
+        }
+    }
+
+    const blockedCellsCount = prng.nextInt(3, 7);
+    let blockedCells = 0;
+
+    while (blockedCells < blockedCellsCount) {
+        const row = prng.nextInt(0, GRID_SIZE - 1);
+        const col = prng.nextInt(0, GRID_SIZE - 1);
+
+        if (
+            grid[row][col] !== 'X' &&
+            !(row === START_POSITION.row && col === START_POSITION.col)
+        ) {
+            grid[row][col] = 'X';
+            blockedCells++;
+        }
+    }
+
+    return grid;
+}
+
+function generatePuzzle(seed, options = {}) {
+    const maxAttempts = options.maxAttempts || 250;
+    const baseSeed = Number(seed) || getDailySeed();
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const prng = new PRNG(baseSeed + attempt);
+        const goal = prng.nextInt(20, 100);
+        const grid = generateCandidateGrid(prng);
+        const solution = findValidSolution(grid, goal, START_POSITION);
+
+        if (solution) {
+            return {
+                grid,
+                goal,
+                seed: baseSeed,
+                attempt,
+                puzzleDate: getPuzzleDate(),
+                solution
+            };
+        }
+    }
+
+    throw new Error(
+        `Unable to generate a solvable puzzle for seed ${baseSeed} after ${maxAttempts} attempts.`
+    );
+}
+
+function findValidSolution(grid, goal, startPosition = START_POSITION) {
     const gridSize = grid.length;
-    const visited = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
-    let currentResult = grid[startPosition.row][startPosition.col];
+    const visited = Array.from(
+        { length: gridSize },
+        () => Array(gridSize).fill(false)
+    );
 
-    function dfs(row, col) {
-        if (currentResult === goal) {
-            return true;
+    const startValue = grid[startPosition.row][startPosition.col];
+
+    function dfs(row, col, currentValue, path, pathOperations) {
+        if (currentValue === goal) {
+            return {
+                result: currentValue,
+                path: [...path],
+                operations: [...pathOperations],
+                equation: buildEquationFromPath(path, pathOperations, grid)
+            };
         }
 
         visited[row][col] = true;
 
-        for (let dir of directions) {
-            const newRow = row + dir.row;
-            const newCol = col + dir.col;
+        for (const direction of DIRECTIONS) {
+            const nextRow = row + direction.row;
+            const nextCol = col + direction.col;
 
             if (
-                newRow >= 0 && newRow < gridSize &&
-                newCol >= 0 && newCol < gridSize &&
-                !visited[newRow][newCol] && grid[newRow][newCol] !== 'X'
+                nextRow >= 0 &&
+                nextRow < gridSize &&
+                nextCol >= 0 &&
+                nextCol < gridSize &&
+                !visited[nextRow][nextCol] &&
+                grid[nextRow][nextCol] !== 'X'
             ) {
-                const prevResult = currentResult;
-                // Try all operations
-                currentResult += grid[newRow][newCol];
-                if (dfs(newRow, newCol)) return true;
-                currentResult = prevResult;
+                const nextValue = grid[nextRow][nextCol];
 
-                currentResult -= grid[newRow][newCol];
-                if (dfs(newRow, newCol)) return true;
-                currentResult = prevResult;
+                for (const operation of ['+', '-', '*', '/']) {
+                    const nextResult = applyOperation(
+                        currentValue,
+                        nextValue,
+                        operation
+                    );
 
-                currentResult *= grid[newRow][newCol];
-                if (dfs(newRow, newCol)) return true;
-                currentResult = prevResult;
+                    if (nextResult === null) {
+                        continue;
+                    }
 
-                if (grid[newRow][newCol] !== 0) {
-                    currentResult = Math.floor(prevResult / grid[newRow][newCol]);
-                    if (dfs(newRow, newCol)) return true;
-                    currentResult = prevResult;
+                    const result = dfs(
+                        nextRow,
+                        nextCol,
+                        nextResult,
+                        [...path, { row: nextRow, col: nextCol }],
+                        [...pathOperations, operation]
+                    );
+
+                    if (result) {
+                        return result;
+                    }
                 }
             }
         }
 
         visited[row][col] = false;
-        return false;
+        return null;
     }
 
-    return dfs(startPosition.row, startPosition.col);
+    return dfs(
+        startPosition.row,
+        startPosition.col,
+        startValue,
+        [{ row: startPosition.row, col: startPosition.col }],
+        []
+    );
 }
 
-// Game initialization and setup
-document.addEventListener('DOMContentLoaded', () => {
-    // Use current time to generate a 6-digit seed
-    const now = new Date();
-    const seed = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    console.log(`Seed: ${seed}`); // Debug: Log the seed value
-    const { grid, goal } = generatePuzzle(seed);
+function hasValidSolution(grid, goal, startPosition = START_POSITION) {
+    return Boolean(findValidSolution(grid, goal, startPosition));
+}
 
-    const gridContainer = document.querySelector('.grid');
-    const goalElement = document.getElementById('target1');
+function buildEquationFromPath(path, pathOperations, sourceGrid) {
+    if (!path.length) return '';
 
-    goalElement.innerText = goal;
+    let equation = String(sourceGrid[path[0].row][path[0].col]);
 
-    gridContainer.innerHTML = ''; // Clear existing grid
+    for (let i = 1; i < path.length; i++) {
+        const operation = pathOperations[i - 1];
+        const cellValue = sourceGrid[path[i].row][path[i].col];
+        equation += ` ${operation} ${cellValue}`;
+    }
 
-    grid.forEach((row, rowIndex) => {
-        row.forEach((cellValue, colIndex) => {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.innerText = cellValue !== 'X' ? cellValue : 'X';
-            if (cellValue === 'X') cell.classList.add('obstacle');
-            cell.dataset.row = rowIndex;
-            cell.dataset.col = colIndex;
-            gridContainer.appendChild(cell);
-        });
-    });
+    return equation;
+}
 
-    // Initialize game logic
-    initializeGame(grid, goal);
-});
+function calculatePathResult(path, pathOperations, sourceGrid) {
+    if (!path.length) {
+        return null;
+    }
 
-// Game logic functions
-let selectedCells = [{ row: 0, col: 0 }]; // Starting point at the top-left corner
-let operations = ['+']; // Initial operation is addition
+    let currentResult = Number(sourceGrid[path[0].row][path[0].col]);
+
+    for (let i = 1; i < path.length; i++) {
+        const cellValue = Number(sourceGrid[path[i].row][path[i].col]);
+        const nextResult = applyOperation(
+            currentResult,
+            cellValue,
+            pathOperations[i - 1]
+        );
+
+        if (nextResult === null) {
+            return null;
+        }
+
+        currentResult = nextResult;
+    }
+
+    return currentResult;
+}
+
+if (typeof window !== 'undefined') {
+    window.NumbleEngine = {
+        PRNG,
+        getPuzzleDate,
+        getDailySeed,
+        generatePuzzle,
+        findValidSolution,
+        hasValidSolution,
+        applyOperation,
+        calculatePathResult
+    };
+}
+
+let selectedCells = [{ row: 0, col: 0 }];
+let operations = [];
 let achievedTarget = false;
-let currentOperation = '+';
-let grid, goal;
-const originalGrid = [];
+let grid;
+let goal;
+let currentPuzzle;
+let originalGrid = [];
+let redirectScheduled = false;
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        currentPuzzle = generatePuzzle(getDailySeed());
+        grid = currentPuzzle.grid;
+        goal = currentPuzzle.goal;
+
+        console.log(`Numble seed: ${currentPuzzle.seed}`);
+        console.log(`Numble generation attempt: ${currentPuzzle.attempt}`);
+
+        const gridContainer = document.querySelector('.grid');
+        const goalElement = document.getElementById('target1');
+
+        goalElement.innerText = goal;
+        gridContainer.innerHTML = '';
+
+        grid.forEach((row, rowIndex) => {
+            row.forEach((cellValue, colIndex) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.innerText = cellValue !== 'X' ? cellValue : 'X';
+
+                if (cellValue === 'X') {
+                    cell.classList.add('obstacle');
+                }
+
+                cell.dataset.row = rowIndex;
+                cell.dataset.col = colIndex;
+                gridContainer.appendChild(cell);
+            });
+        });
+
+        initializeGame(grid, goal);
+    });
+}
 
 function initializeGame(generatedGrid, generatedGoal) {
     grid = generatedGrid;
     goal = generatedGoal;
+    selectedCells = [{ row: 0, col: 0 }];
+    operations = [];
+    achievedTarget = false;
+    redirectScheduled = false;
+    originalGrid = [];
 
-    // Initialize originalGrid for tracking cell values
-    const gridSize = grid.length;
-    for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
+    for (let row = 0; row < grid.length; row++) {
+        for (let col = 0; col < grid.length; col++) {
             originalGrid.push(grid[row][col]);
         }
     }
 
     const cells = document.querySelectorAll('.cell');
+
     cells.forEach((cell) => {
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
+        const row = parseInt(cell.dataset.row, 10);
+        const col = parseInt(cell.dataset.col, 10);
 
         if (row === 0 && col === 0) {
             cell.classList.add('selected');
@@ -183,16 +317,20 @@ function initializeGame(generatedGrid, generatedGoal) {
 
         cell.addEventListener('click', (event) => {
             if (cell.classList.contains('obstacle')) {
-                trembleGrid();
-                navigator.vibrate(200); // Vibrate for 200ms
+                rejectMove();
             } else {
                 showPopupMenu(event, cell, row, col);
             }
         });
     });
 
-    document.getElementById('undo-button').addEventListener('click', undoLastMove);
-    document.getElementById('reset-button').addEventListener('click', resetPath);
+    document
+        .getElementById('undo-button')
+        .addEventListener('click', undoLastMove);
+
+    document
+        .getElementById('reset-button')
+        .addEventListener('click', resetPath);
 
     highlightValidMoves();
     updateTargetStatus();
@@ -200,24 +338,40 @@ function initializeGame(generatedGrid, generatedGoal) {
 }
 
 function showPopupMenu(event, cell, row, col) {
+    const existingPopup = document.querySelector('.popup-menu');
+
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+
+    if (selectedCells.some((selected) => selected.row === row && selected.col === col)) {
+        handleCellSelection(cell, row, col);
+        return;
+    }
+
     const popupMenu = document.createElement('div');
     popupMenu.classList.add('popup-menu');
 
-    ['+', '-', '*', '/'].forEach(operation => {
+    ['+', '-', '*', '/'].forEach((operation) => {
         const button = document.createElement('button');
         button.innerText = operation;
-        button.addEventListener('click', () => handleCellSelection(cell, row, col, operation));
+        button.addEventListener('click', () => {
+            handleCellSelection(cell, row, col, operation);
+        });
         popupMenu.appendChild(button);
     });
 
     document.body.appendChild(popupMenu);
+
     const rect = cell.getBoundingClientRect();
     popupMenu.style.left = `${rect.right + window.scrollX}px`;
     popupMenu.style.top = `${rect.top + window.scrollY}px`;
 
-    function removePopup() {
-        document.body.removeChild(popupMenu);
-        document.body.removeEventListener('click', removePopup);
+    function removePopup(clickEvent) {
+        if (!popupMenu.contains(clickEvent.target)) {
+            popupMenu.remove();
+            document.body.removeEventListener('click', removePopup);
+        }
     }
 
     setTimeout(() => {
@@ -226,34 +380,51 @@ function showPopupMenu(event, cell, row, col) {
 }
 
 function handleCellSelection(cell, row, col, operation) {
-    if (selectedCells.some(selected => selected.row === row && selected.col === col)) {
-        // Backtracking up to the clicked square
-        const deselectIndex = selectedCells.findIndex(selected => selected.row === row && selected.col === col);
+    if (selectedCells.some((selected) => selected.row === row && selected.col === col)) {
+        const deselectIndex = selectedCells.findIndex(
+            (selected) => selected.row === row && selected.col === col
+        );
+
         while (selectedCells.length > deselectIndex + 1) {
             const removed = selectedCells.pop();
             operations.pop();
-            const removedCell = document.querySelector(`[data-row="${removed.row}"][data-col="${removed.col}"]`);
+
+            const removedCell = document.querySelector(
+                `[data-row="${removed.row}"][data-col="${removed.col}"]`
+            );
+
             removedCell.classList.remove('selected');
             removedCell.innerText = originalGrid[removed.row * grid.length + removed.col];
         }
+
         updateCellValues();
-        updateEquation(); // Recalculate equation after backtracking
+        updateEquation();
     } else {
-        if (!currentOperation) {
-            trembleGrid();
-            navigator.vibrate(200); // Vibrate for 200ms
+        if (!isValidMove(row, col)) {
+            rejectMove();
             return;
         }
-        if (isValidMove(row, col) && !selectedCells.some(selected => selected.row === row && selected.col === col)) {
-            selectedCells.push({ row, col });
-            operations.push(operation);
-            cell.classList.add('selected');
-            updateEquation();
-            updateCellValues();
-        } else {
-            trembleGrid();
-            navigator.vibrate(200); // Vibrate for 200ms
+
+        const currentResult = calculateCurrentResult();
+        const nextValue = Number(originalGrid[row * grid.length + col]);
+
+        const nextResult = applyOperation(
+            currentResult,
+            nextValue,
+            operation
+        );
+
+        if (nextResult === null) {
+            rejectMove();
+            return;
         }
+
+        selectedCells.push({ row, col });
+        operations.push(operation);
+        cell.classList.add('selected');
+
+        updateEquation();
+        updateCellValues();
     }
 
     highlightValidMoves();
@@ -261,122 +432,81 @@ function handleCellSelection(cell, row, col, operation) {
 
 function isValidMove(row, col) {
     const lastCell = selectedCells[selectedCells.length - 1];
-    return Math.abs(lastCell.row - row) <= 1 && Math.abs(lastCell.col - col) <= 1;
-}
 
-function setOperation(operation) {
-    currentOperation = operation;
-    document.querySelectorAll('.operations button').forEach(button => {
-        button.classList.remove('selected');
-    });
-    document.querySelector(`.operations button[onclick="setOperation('${operation}')"]`).classList.add('selected');
+    return (
+        Math.abs(lastCell.row - row) <= 1 &&
+        Math.abs(lastCell.col - col) <= 1
+    );
 }
 
 function updateEquation() {
-    let equation = '';
-    let currentResult = parseInt(originalGrid[selectedCells[0].row * grid.length + selectedCells[0].col]);
-    equation += currentResult;
+    const equation = buildEquationFromPath(selectedCells, operations, grid);
+    const currentResult = calculateCurrentResult();
 
-    for (let i = 1; i < selectedCells.length; i++) {
-        const cellValue = parseInt(originalGrid[selectedCells[i].row * grid.length + selectedCells[i].col]);
-        equation += ` ${operations[i]} ${cellValue}`;
-        switch (operations[i]) {
-            case '+':
-                currentResult += cellValue;
-                break;
-            case '-':
-                currentResult -= cellValue;
-                break;
-            case '*':
-                currentResult *= cellValue;
-                break;
-            case '/':
-                currentResult /= cellValue;
-                break;
-        }
-    }
+    document.getElementById('equation').innerText =
+        `${equation} = ${currentResult}`;
 
-    document.getElementById('equation').innerText = `${equation} = ${currentResult}`;
-    checkTarget(currentResult);
+    checkTarget(currentResult, equation);
 }
 
 function calculateCurrentResult() {
-    let currentResult = parseInt(originalGrid[selectedCells[0].row * grid.length + selectedCells[0].col]);
-
-    for (let i = 1; i < selectedCells.length; i++) {
-        const cellValue = parseInt(originalGrid[selectedCells[i].row * grid.length + selectedCells[i].col]);
-        switch (operations[i]) {
-            case '+':
-                currentResult += cellValue;
-                break;
-            case '-':
-                currentResult -= cellValue;
-                break;
-            case '*':
-                currentResult *= cellValue;
-                break;
-            case '/':
-                currentResult /= cellValue;
-                break;
-        }
-    }
-
-    return currentResult;
+    return calculatePathResult(selectedCells, operations, grid);
 }
 
-function checkTarget(result) {
-    if (result === goal) {
-        achievedTarget = true;
-    } else {
-        achievedTarget = false;
-    }
+function checkTarget(result, equation) {
+    achievedTarget = result === goal;
 
     updateTargetStatus();
-    checkIfGameWon();
+    checkIfGameWon(result, equation);
 }
 
-function checkIfGameWon() {
-    if (achievedTarget) {
+function checkIfGameWon(result, equation) {
+    if (achievedTarget && !redirectScheduled) {
+        redirectScheduled = true;
+        saveResult(result, equation);
+
         setTimeout(() => {
             window.location.href = 'results.html';
-        }, 1000); // Redirect after 1 second
+        }, 1000);
     }
+}
+
+function saveResult(result, equation) {
+    const resultPayload = {
+        puzzleDate: currentPuzzle?.puzzleDate || getPuzzleDate(),
+        seed: currentPuzzle?.seed || getDailySeed(),
+        target: goal,
+        result,
+        equation,
+        steps: selectedCells.length - 1,
+        path: selectedCells,
+        operations,
+        completedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(
+        'numble:lastResult',
+        JSON.stringify(resultPayload)
+    );
 }
 
 function updateTargetStatus() {
     const targetElement = document.getElementById('target1');
-    if (achievedTarget) {
-        targetElement.style.color = 'green';
-    } else {
-        targetElement.style.color = '#4E5180'; // Slate blue for target
-    }
+
+    targetElement.style.color = achievedTarget
+        ? 'green'
+        : '#4E5180';
 }
 
 function updateCellValues() {
-    const cells = document.querySelectorAll('.cell');
-    let currentResult = parseInt(originalGrid[selectedCells[0].row * grid.length + selectedCells[0].col]);
+    const currentResult = calculateCurrentResult();
 
-    for (let i = 1; i < selectedCells.length; i++) {
-        const cellValue = parseInt(originalGrid[selectedCells[i].row * grid.length + selectedCells[i].col]);
-        switch (operations[i]) {
-            case '+':
-                currentResult += cellValue;
-                break;
-            case '-':
-                currentResult -= cellValue;
-                break;
-            case '*':
-                currentResult *= cellValue;
-                break;
-            case '/':
-                currentResult /= cellValue;
-                break;
-        }
-    }
+    selectedCells.forEach((selected, index) => {
+        const cell = document.querySelector(
+            `[data-row="${selected.row}"][data-col="${selected.col}"]`
+        );
 
-    selectedCells.forEach((selected, idx) => {
-        const cell = document.querySelector(`[data-row="${selected.row}"][data-col="${selected.col}"]`);
-        if (idx === selectedCells.length - 1) {
+        if (index === selectedCells.length - 1) {
             cell.innerText = currentResult;
         } else {
             cell.innerText = originalGrid[selected.row * grid.length + selected.col];
@@ -385,21 +515,37 @@ function updateCellValues() {
 }
 
 function highlightValidMoves() {
-    document.querySelectorAll('.cell').forEach(cell => {
+    document.querySelectorAll('.cell').forEach((cell) => {
         cell.classList.remove('valid-move');
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
-        if (isValidMove(row, col) && !selectedCells.some(selected => selected.row === row && selected.col === col)) {
+
+        const row = parseInt(cell.dataset.row, 10);
+        const col = parseInt(cell.dataset.col, 10);
+
+        if (
+            isValidMove(row, col) &&
+            !selectedCells.some((selected) => selected.row === row && selected.col === col) &&
+            !cell.classList.contains('obstacle')
+        ) {
             cell.classList.add('valid-move');
         }
     });
 }
 
+function rejectMove() {
+    trembleGrid();
+
+    if (navigator.vibrate) {
+        navigator.vibrate(200);
+    }
+}
+
 function trembleGrid() {
-    const grid = document.querySelector('.grid');
-    grid.classList.add('tremble');
+    const gridElement = document.querySelector('.grid');
+
+    gridElement.classList.add('tremble');
+
     setTimeout(() => {
-        grid.classList.remove('tremble');
+        gridElement.classList.remove('tremble');
     }, 300);
 }
 
@@ -407,9 +553,14 @@ function undoLastMove() {
     if (selectedCells.length > 1) {
         const removed = selectedCells.pop();
         operations.pop();
-        const removedCell = document.querySelector(`[data-row="${removed.row}"][data-col="${removed.col}"]`);
+
+        const removedCell = document.querySelector(
+            `[data-row="${removed.row}"][data-col="${removed.col}"]`
+        );
+
         removedCell.classList.remove('selected');
         removedCell.innerText = originalGrid[removed.row * grid.length + removed.col];
+
         updateCellValues();
         updateEquation();
         highlightValidMoves();
@@ -417,14 +568,39 @@ function undoLastMove() {
 }
 
 function resetPath() {
-    selectedCells = [selectedCells[0]];
-    operations = ['+'];
-    document.querySelectorAll('.cell').forEach(cell => {
+    selectedCells = [{ row: 0, col: 0 }];
+    operations = [];
+    achievedTarget = false;
+    redirectScheduled = false;
+
+    document.querySelectorAll('.cell').forEach((cell) => {
         cell.classList.remove('selected');
-        cell.innerText = originalGrid[parseInt(cell.dataset.row) * grid.length + parseInt(cell.dataset.col)];
+
+        const row = parseInt(cell.dataset.row, 10);
+        const col = parseInt(cell.dataset.col, 10);
+
+        cell.innerText = originalGrid[row * grid.length + col];
     });
-    document.querySelector(`[data-row="0"][data-col="0"]`).classList.add('selected');
+
+    document
+        .querySelector('[data-row="0"][data-col="0"]')
+        .classList.add('selected');
+
     updateCellValues();
     updateEquation();
     highlightValidMoves();
+}
+
+if (typeof module !== 'undefined') {
+    module.exports = {
+        PRNG,
+        getPuzzleDate,
+        getDailySeed,
+        generatePuzzle,
+        findValidSolution,
+        hasValidSolution,
+        applyOperation,
+        calculatePathResult,
+        buildEquationFromPath
+    };
 }
