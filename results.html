@@ -10,8 +10,40 @@
     <div class="container">
         <h1 class="logo">Numble</h1>
         <p class="congratulations">Congratulations!</p>
-        <p class="results">Par: 6<br>Steps: 7<br>Score: 7</p>
-        <button class="share-button">Share</button>
+        <div class="results" id="results-summary">
+            <p>Loading result...</p>
+        </div>
+        <button class="share-button" id="share-button">Share</button>
+        <button class="play-button" onclick="location.href='gameplay.html'">Play Again</button>
     </div>
+    <script>
+        const result = JSON.parse(localStorage.getItem('numble:lastResult') || 'null');
+        const summary = document.getElementById('results-summary');
+        const shareButton = document.getElementById('share-button');
+
+        if (!result) {
+            summary.innerHTML = '<p>No completed puzzle found.</p><p><a href="gameplay.html">Play today\'s puzzle</a></p>';
+            shareButton.disabled = true;
+        } else {
+            const score = Math.max(0, 100 - Number(result.steps || 0) * 5);
+            summary.innerHTML = `
+                <p><strong>Date:</strong> ${result.puzzleDate || 'Today'}</p>
+                <p><strong>Target:</strong> ${result.target}</p>
+                <p><strong>Steps:</strong> ${result.steps}</p>
+                <p><strong>Score:</strong> ${score}</p>
+                <p><strong>Equation:</strong><br>${result.equation} = ${result.result}</p>
+            `;
+
+            shareButton.addEventListener('click', async () => {
+                const shareText = `Numble ${result.puzzleDate || ''}\nTarget: ${result.target}\nSteps: ${result.steps}\n${result.equation} = ${result.result}`;
+                try {
+                    await navigator.clipboard.writeText(shareText);
+                    shareButton.innerText = 'Copied!';
+                } catch (error) {
+                    shareButton.innerText = 'Copy failed';
+                }
+            });
+        }
+    </script>
 </body>
 </html>
